@@ -1,182 +1,241 @@
 # Hospital PUC System
 
-Backend modular para gestão hospitalar aplicando Clean Architecture, separação clara de camadas, repositórios, casos de uso e pontos de extensão (e-mail, automação, analytics).
+A modular backend for hospital management built using Clean Architecture, featuring a clear separation of layers, repositories, use cases, and extension points for email, automation, and analytics.
 
 ---
 
-## 1. Objetivo Geral
-Fornecer API coerente para operações clínicas, administrativas, financeiras, monitoramento operacional e geração de indicadores analíticos.
+# 1. Overview
 
-## 2. Escopo Macro
-- Cadastros: pacientes, médicos, convênios, setores, leitos, medicamentos, especialidades
-- Operações: consultas, internações, prescrições, exames, faturamento
-- Notificações: e-mail (port SMTP)
-- Analytics e Automação: relatórios, métricas assistenciais, eventos operacionais
+Provides a consistent REST API for clinical, administrative, financial, operational monitoring, and analytical reporting workflows.
 
 ---
 
-## 3. Requisitos Funcionais
+# 2. Project Scope
 
-| Código | Requisito | Descrição Resumida |
-|--------|-----------|--------------------|
-| RF01 | Cadastro Paciente | CRUD completo + vínculo a endereços |
-| RF02 | Cadastro Médico | CRUD + vínculo especialidades |
-| RF03 | Especialidades | CRUD |
-| RF04 | Agendamento Consulta | Valida data >= hoje; médico & paciente existem |
-| RF05 | Exames | Registro e listagem por paciente/médico |
-| RF06 | Prescrições | Vincula medicamentos, paciente, médico |
-| RF07 | Medicamentos | CRUD catálogo |
-| RF08 | Internações | Abrir, atualizar, dar alta |
-| RF09 | Leitos | Controle status (ocupado / livre) |
-| RF10 | Setores | CRUD setorial |
-| RF11 | Convênios | CRUD planos |
-| RF12 | Financeiro | Lançamentos e atualização validada |
-| RF13 | Endereço | Associação a paciente |
-| RF14 | Validação | Schemas (Cerberus) por operação |
-| RF15 | Respostas de Erro | Envelope padronizado |
-| RF16 | Notificação E-mail | Envio (boas-vindas, token, reset, reenvio) |
-| RF17 | Relatórios Ocupação | Taxa de ocupação por setor / dia / semana |
-| RF18 | Estatísticas Atendimentos | Agrupado por médico / especialidade / período |
-| RF19 | Análise Financeira | Faturamento por convênio, inadimplência, ticket médio |
-| RF20 | Tempo Médio Internação | Média (alta - admissão) por diagnóstico / período |
-| RF21 | Indicadores Readmissão | Pacientes que retornam em < X dias |
-| RF22 | Lembrete Consulta (Automação) | Gatilho e-mail/webhook X horas antes |
-| RF23 | Alerta Leito Disponível (Evento) | Emissão de evento quando leito libera |
-| RF24 | Gatilho Faturamento Automático | Ao dar alta → gerar lançamento financeiro |
-| RF25 | Relatório Diário Automático | Gera PDF/Excel e envia para gestão |
-| RF26 | Monitoramento Exceções | Log + alerta em dados inconsistentes |
-
-### 3.1 Automação / Eventos (RF22–RF26)
-| Código | Automação | Ação Técnica |
-|--------|-----------|--------------|
-| RF22 | Lembrete Consulta | Job scheduler (cron/async task) consulta consultas futuras |
-| RF23 | Alerta Leito Livre | Observer publica evento (ex: in-memory bus) |
-| RF24 | Faturamento Automático | Hook pós-alta gera registro financeiro |
-| RF25 | Relatório Diário | Task gera dataset + exportador (PDF/CSV) + envio |
-| RF26 | Monitor Exceções | Middleware / error handler → canal (log + futuro webhook) |
+* Patient management
+* Doctor management
+* Health insurance providers
+* Hospital departments
+* Beds
+* Medications
+* Medical specialties
+* Appointments
+* Hospitalizations
+* Prescriptions
+* Medical exams
+* Billing
+* Email notifications
+* Analytics
+* Process automation
 
 ---
 
-## 4. Requisitos Não Funcionais
+# 3. Functional Requirements
 
-| Código | Categoria | Descrição |
-|--------|-----------|-----------|
-| NFR01 | Arquitetura | Clean Architecture em camadas |
-| NFR02 | Testabilidade | Spies e mocks para casos de uso / repositórios |
-| NFR03 | Manutenibilidade | Domínio isolado de infra |
-| NFR04 | Extensibilidade | Composers para injeção |
-| NFR05 | Consistência | Envelope HTTP uniforme |
-| NFR06 | Observabilidade | Logs estruturados (extensível) |
-| NFR07 | Segurança (Futuro) | Autenticação + RBAC |
-| NFR08 | Portabilidade | Config via `.env` |
-| NFR09 | Integridade | FKs e validações domínio |
-| NFR10 | Evolução Analytics | Camada agregadora para métricas (futuro datamart) |
-| NFR11 | Isolamento SMTP | Porta (interface) desacoplada |
-| NFR12 | Automação Escalonável | Ponto para fila (ex: Celery / RQ) futuro |
-
----
-
-## 5. Arquitetura (Visão de Camadas)
-
-Flow: Route → Adapter → Controller → UseCase (data) → Repository Interface → Infra Repo → DB  
-Componentes:
-- domain/: modelos + contratos de casos de uso
-- data/: implementações de casos de uso + interfaces de repositório/serviços
-- infra/: persistência (SQLAlchemy), SMTP adapter, templates
-- presentation/: controllers + http abstractions
-- main/: composers (wire), rotas, servidor
-- validation/: schemas de entrada
-- errors/: tipos + handler
-
-Automação & Analytics (novos):
-- Camada futura: analytics/ (agregações, queries especializadas)
-- Camada de eventos: event bus simples (futuro) p/ RF23/RF24
-- Scheduler externo (cron ou lib) para RF22/RF25
+| Code | Requirement            | Description                                                            |
+| ---- | ---------------------- | ---------------------------------------------------------------------- |
+| RF01 | Patient Management     | Full CRUD with address association                                     |
+| RF02 | Doctor Management      | Full CRUD with specialties                                             |
+| RF03 | Medical Specialties    | CRUD                                                                   |
+| RF04 | Appointment Scheduling | Appointment date must be today or later. Doctor and patient must exist |
+| RF05 | Medical Exams          | Register and list exams by patient or doctor                           |
+| RF06 | Prescriptions          | Associate medications with doctors and patients                        |
+| RF07 | Medications            | Medication catalog CRUD                                                |
+| RF08 | Hospitalizations       | Admit, update, and discharge patients                                  |
+| RF09 | Beds                   | Occupancy management                                                   |
+| RF10 | Departments            | CRUD                                                                   |
+| RF11 | Health Insurance       | CRUD                                                                   |
+| RF12 | Financial Management   | Validated financial records                                            |
+| RF13 | Addresses              | Linked to patients                                                     |
+| RF14 | Validation             | Cerberus schemas                                                       |
+| RF15 | Error Handling         | Standardized HTTP responses                                            |
+| RF16 | Email Notifications    | Welcome emails, password reset, verification tokens                    |
+| RF17 | Occupancy Reports      | Bed occupancy by department and period                                 |
+| RF18 | Healthcare Statistics  | Statistics by doctor, specialty, and period                            |
+| RF19 | Financial Analytics    | Revenue, average ticket, outstanding payments                          |
+| RF20 | Average Length of Stay | Average hospitalization duration                                       |
+| RF21 | Readmission Indicators | Patients readmitted within a configurable period                       |
+| RF22 | Appointment Reminder   | Automated email/webhook reminders                                      |
+| RF23 | Bed Availability Event | Publish event when a bed becomes available                             |
+| RF24 | Automatic Billing      | Generate billing on patient discharge                                  |
+| RF25 | Daily Report           | Generate PDF/CSV reports automatically                                 |
+| RF26 | Exception Monitoring   | Structured logging and alerts                                          |
 
 ---
 
-## 6. Modelos de Dados (Exemplos Simples)
-- Paciente: id, nome, data_nascimento, convênio_id
-- Internação: id, paciente_id, leito_id, dt_admissao, dt_alta
-- Leito: id, setor_id, tipo, status
-- Financeiro: id, tipo, valor, convênio_id, status
-- Consulta: id, paciente_id, medico_id, dt_consulta
+# 4. Non-Functional Requirements
 
-(Métricas agregadas derivadas, não persistidas diretamente.)
-
----
-
-## 7. Métricas / Analytics (RF17–RF21)
-
-| Métrica | Fonte | Método |
-|---------|-------|--------|
-| Ocupação (% ocupados / total) | leitos + internações ativas | Query agregada por período |
-| Atendimentos por especialidade | consultas + médicos | Group by especialidade_id |
-| Faturamento por convênio | financeiro | SUM(valor) FILTER(status='CONFIRMADO') |
-| Ticket médio | financeiro | SUM / COUNT lançamentos |
-| Tempo médio internação | internação | AVG(dt_alta - dt_admissao) |
-| Readmissão | internação | Self-join por paciente dentro janela X |
+| Code  | Category            | Description                            |
+| ----- | ------------------- | -------------------------------------- |
+| NFR01 | Architecture        | Clean Architecture                     |
+| NFR02 | Testability         | Mockable repositories and use cases    |
+| NFR03 | Maintainability     | Domain isolated from infrastructure    |
+| NFR04 | Extensibility       | Dependency injection through composers |
+| NFR05 | Consistency         | Standard HTTP response model           |
+| NFR06 | Observability       | Structured logging                     |
+| NFR07 | Security            | Authentication and RBAC (future)       |
+| NFR08 | Portability         | Environment-based configuration        |
+| NFR09 | Data Integrity      | Domain validations and foreign keys    |
+| NFR10 | Analytics           | Extensible analytics layer             |
+| NFR11 | SMTP Isolation      | Email provider abstraction             |
+| NFR12 | Scalable Automation | Future queue integration               |
 
 ---
 
-## 8. Automação (Execução Técnica)
+# 5. Architecture
 
-| Gatilho | Implementação Base |
-|---------|--------------------|
-| Scheduler (consultas futuras) | Função iterando repositório consultas |
-| Hook pós-alta | Método no usecase alta chama gerador financeiro |
-| Evento leito liberado | Update status → publica callback (extensível) |
-| Export diário | Query agregada + writer CSV/PDF + envio e-mail |
-| Monitor exceções | Decorator / handler central + log estruturado |
+Flow:
 
----
-
-## 9. Tratamento de Erros
-Formato:
 ```
+Route
+    ↓
+Adapter
+    ↓
+Controller
+    ↓
+Use Case
+    ↓
+Repository Interface
+    ↓
+Infrastructure Repository
+    ↓
+Database
+```
+
+Project layers:
+
+```
+domain/
+data/
+infra/
+presentation/
+main/
+validation/
+errors/
+```
+
+Future modules:
+
+* analytics/
+* automation/
+* event bus
+
+---
+
+# 6. Data Models
+
+Example entities:
+
+* Patient
+* Doctor
+* Appointment
+* Hospitalization
+* Bed
+* Financial Record
+
+Aggregated analytics are calculated dynamically and are not persisted.
+
+---
+
+# 7. Analytics
+
+Implemented metrics include:
+
+* Bed occupancy rate
+* Appointments by specialty
+* Revenue by insurance provider
+* Average billing
+* Average hospitalization duration
+* Readmission rate
+
+---
+
+# 8. Automation
+
+Automated workflows include:
+
+* Appointment reminders
+* Automatic billing
+* Bed availability events
+* Daily report generation
+* Exception monitoring
+
+Designed to be compatible with schedulers and future queue systems.
+
+---
+
+# 9. Error Handling
+
+Standard response format:
+
+```json
 {
   "error": [
-    {"title": "HttpBadRequestError", "message": "Detalhe"}
+    {
+      "title": "HttpBadRequestError",
+      "message": "Error details"
+    }
   ]
 }
 ```
-Mapeamento central em `errors/error_handler.py`.
+
+Centralized error mapping is handled by `errors/error_handler.py`.
 
 ---
 
-## 10. Notificação / SMTP
-Interface: `SMTPServiceInterface`  
-Implementação: `SMTPEmailService`  
-Templates: `infra/email/templates/*`  
-Tipos: boas-vindas, token, reset, reenvio (RF16)  
-Extensível para: lembretes (RF22), relatórios (RF25).
+# 10. Email Service
+
+Interface:
+
+```
+SMTPServiceInterface
+```
+
+Implementation:
+
+```
+SMTPEmailService
+```
+
+Supported templates:
+
+* Welcome
+* Verification Token
+* Password Reset
+* Resend Token
+
+Future support:
+
+* Appointment reminders
+* Daily reports
 
 ---
 
-## 11. Estrutura Simplificada
+# 11. Project Structure
 
 ```
 src/
-  domain/
-  data/
-  infra/
-  presentation/
-  main/
-  validation/
-  errors/
-  (futuro) analytics/
+├── domain/
+├── data/
+├── infra/
+├── presentation/
+├── main/
+├── validation/
+├── errors/
+└── analytics/ (planned)
 ```
 
 ---
 
-## 12. Ambiente (.env)
+# 12. Environment Variables
 
-```
+```env
 DB_USER=
 DB_PASSWORD=
 DB_HOST=localhost
 DB_PORT=3306
 DB_NAME=
+
 MAIL_USERNAME=
 MAIL_PASS=
 MAIL_FROM=
@@ -187,106 +246,120 @@ MAIL_SERVER=smtp.gmail.com
 
 ---
 
-## 13. Execução
+# 13. Running the Project
 
-```
+```bash
 python3 -m venv venv
+
 source venv/bin/activate
+
 pip install -r requirements.txt
+
 cp src/.env.example src/.env
+
 python run.py
 ```
-API Base: http://127.0.0.1:8000/v1/
+
+Base URL:
+
+```
+http://127.0.0.1:8000/v1/
+```
 
 ---
 
-## 14. Testes
+# 14. Tests
 
-```
+```bash
 pytest -q
 ```
-- Repositórios: spies
-- Casos de uso: isolamento via interfaces
-- Futuro: métricas e automações mockadas
+
+Testing strategy:
+
+* Repository spies
+* Isolated use case tests
+* Mocked analytics and automation
 
 ---
 
-## 15. Roadmap Incremental
+# 15. Roadmap
 
-| Fase | Entrega |
-|------|---------|
-| 1 | Núcleo CRUD + validações |
-| 2 | E-mail + tokens |
-| 3 | Métricas operacionais (RF17–RF21) |
-| 4 | Automação básica (RF22–RF24) |
-| 5 | Export diário + monitoração (RF25–RF26) |
-| 6 | Async tasks + filas |
-| 7 | Autenticação / RBAC |
-
----
-
-## 16. Licença
-Uso interno / educacional (definir formalização futura).
+| Phase | Goal                    |
+| ----- | ----------------------- |
+| 1     | CRUD modules            |
+| 2     | Email service           |
+| 3     | Analytics               |
+| 4     | Automation              |
+| 5     | Daily reporting         |
+| 6     | Async tasks and queues  |
+| 7     | Authentication and RBAC |
 
 ---
 
-## 17. Resumo Técnico
-Arquitetura desacoplada, preparada para escalar: inclusão de camadas de analytics e automações sem quebrar domínio central. Requisitos RF17–RF26 adicionam visão gerencial e operacional contínua. SMTP e eventos estruturam notificações e fluxos reativos.
+# 16. License
+
+Educational and internal use.
 
 ---
 
-## 18. Análises Planejadas (AD01–AD05)
-Conjunto inicial de indicadores operacionais e assistenciais simples de implementar, visando dashboards e alertas leves:
+# 17. Technical Summary
 
-| Código | Análise | Descrição Técnica | Insight / Alerta |
-|--------|---------|-------------------|------------------|
-| AD01 | Ocupação + Tendência | Ocupação por setor (dia / semana) + média móvel 7d | Alerta se ocupação > X% por 3 dias |
-| AD02 | Consultas por Especialidade | Aggregation consultas GROUP BY especialidade + janela temporal | Queda >20% vs média 4 semanas |
-| AD03 | Faturamento Convênio | SUM(valor), ticket médio, % pendente por convênio | Convênio com maior inadimplência |
-| AD04 | Readmissões Rápidas | Reinternações < X dias (self join internação) | Top 3 diagnósticos recorrentes |
-| AD05 | Consumo & Estoque Medicamentos | Dias de cobertura = estoque / consumo médio diário | Itens com cobertura < 5 dias |
-
-### 18.1 Estratégia Técnica
-* Criar camada `analytics/` (services + queries agregadas)
-* Endpoints read-only: `GET /analytics/ocupacao`, `.../consultas-especialidade`, etc.
-* Possível materialização diária (tabela ou view) para ocupação → reduz custo em tempo real
-* Métricas calculadas em funções puras para fácil teste (mock repos)
+A modular backend designed for scalability and maintainability through Clean Architecture. The system separates business rules from infrastructure, making it straightforward to extend with analytics, automation, event-driven workflows, and future integrations without impacting the core domain.
 
 ---
 
-## 19. Automações Planejadas (AUTO01–AUTO05)
-Eventos e rotinas leves para suporte operacional sem complexidade de filas inicialmente.
+# 18. Planned Analytics
 
-| Código | Automação | Trigger / Regra | Ação |
-|--------|-----------|-----------------|------|
-| AUTO01 | Alerta Baixa Disponibilidade Leitos | Leitos livres setor < 10% | E-mail / webhook operacional |
-| AUTO02 | Lembrete Fatura Pendente | N dias após vencimento sem pagamento | E-mail cobrança interna |
-| AUTO03 | Nudge Exame Atrasado | Exame status 'em_andamento' > 48h | Notificação responsável |
-| AUTO04 | Flag Estadia Prolongada | Duração > mediana + X dias | Inserir em fila revisão clínica |
-| AUTO05 | Reposição Medicamento | Estoque < limite mínimo | E-mail farmácia + log evento |
+| Code | Analysis                  | Purpose                        |
+| ---- | ------------------------- | ------------------------------ |
+| AD01 | Occupancy Trend           | Bed occupancy over time        |
+| AD02 | Appointments by Specialty | Healthcare demand analysis     |
+| AD03 | Revenue Analytics         | Billing insights               |
+| AD04 | Readmission Analysis      | Patient readmission monitoring |
+| AD05 | Medication Consumption    | Inventory forecasting          |
 
-### 19.1 Implementação Inicial
-* Scheduler simples (ex: APScheduler ou loop thread) varrendo regras em intervalos
-* Camada `automation/` com tasks puras consumindo interfaces de repositório
-* Dispatcher central (ex: `AutomationDispatcher`) para envio (e-mail / log / webhook) abstrato
-* Escalável futuramente para fila (Redis/Celery) sem alterar casos de uso
+Implementation strategy:
+
+* Dedicated `analytics/` module
+* Read-only endpoints
+* SQL aggregation queries
+* Pure functions for easy testing
+
+---
+
+# 19. Planned Automations
+
+| Code   | Automation                     |
+| ------ | ------------------------------ |
+| AUTO01 | Low bed availability alert     |
+| AUTO02 | Outstanding payment reminder   |
+| AUTO03 | Delayed exam notification      |
+| AUTO04 | Long hospitalization detection |
+| AUTO05 | Medication restocking alert    |
+
+Initial implementation:
+
+* Scheduler
+* Automation services
+* Central dispatcher
+* Future support for Redis/Celery
 
 ---
 
-## 20. Incremento Gradual (Plano Técnico)
-| Etapa | Incremento | Dependências |
-|-------|------------|--------------|
-| 1 | Criar diretório `analytics/` e endpoint ocupação (AD01) | Repositórios leito & internação |
-| 2 | Adicionar AD02 & AD03 | Repositórios consulta & financeiro |
-| 3 | Implementar scheduler básico (AUTO01 & AUTO05) | Métricas ocupação / estoque |
-| 4 | Introduzir automações restantes (AUTO02–AUTO04) | Financeiro, exames, internação |
-| 5 | Materializar métricas diárias e adicionar testes unitários analytics | Infra DB |
-| 6 | Abstrair dispatcher → preparar plugin fila futura | Opcional (scalability) |
+# 20. Incremental Development Plan
 
-### 20.1 Considerações de Simplicidade
-* Sem dependência inicial de ferramentas de Big Data
-* Uso de queries SQL agregadas diretas
-* Alertas via mesma infraestrutura SMTP existente
-* Código focado em funções puras → fácil cobertura de testes
+| Step | Deliverable          |
+| ---- | -------------------- |
+| 1    | Analytics module     |
+| 2    | Financial analytics  |
+| 3    | Scheduler            |
+| 4    | Automation workflows |
+| 5    | Materialized metrics |
+| 6    | Queue abstraction    |
 
----
+Design principles:
+
+* No Big Data dependencies
+* SQL-based analytics
+* SMTP-based notifications
+* Highly testable pure functions
