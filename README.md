@@ -1,4 +1,4 @@
-# Hospital PUC System
+# Heal hospital System
 
 A modular backend for hospital management built using Clean Architecture, featuring a clear separation of layers, repositories, use cases, and extension points for email, automation, and analytics.
 
